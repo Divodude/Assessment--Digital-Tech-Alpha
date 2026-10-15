@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { getOrganizations, getLineItems } from "./api";
+import {
+  getOrganizations,
+  getLineItems,
+  getTransactions,
+  importBankStatement,
+} from "./api";
 
 function formatMoney(amount: string | number) {
   const num = Number(amount) || 0;
@@ -10,6 +15,26 @@ function App() {
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [selectedOrganization, setSelectedOrganization] = useState("");
   const [lineItems, setLineItems] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+
+
+  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSummary, setUploadSummary] = useState<any>(null);
+  const [uploadError, setUploadError] = useState("");
+
+  // helper function to load all data for current org
+  function loadData(orgSlug: string) {
+    if (!orgSlug) return;
+
+    getLineItems(orgSlug)
+      .then((data) => setLineItems(data))
+      .catch((err) => console.log("line items error", err));
+
+    getTransactions(orgSlug)
+      .then((data) => setTransactions(data))
+      .catch((err) => console.log("transactions error", err));
+  }
 
   useEffect(() => {
     getOrganizations()
@@ -25,16 +50,34 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!selectedOrganization) return;
-
-    getLineItems(selectedOrganization)
-      .then((data) => {
-        setLineItems(data);
-      })
-      .catch((error) => {
-        console.error("Error fetching line items:", error);
-      });
+    setUploadSummary(null);
+    setUploadError("");
+    loadData(selectedOrganization);
   }, [selectedOrganization]);
+
+  function handleUpload() {
+    if (!selectedFile) {
+      alert("Please select a CSV file first!");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError("");
+    setUploadSummary(null);
+
+    importBankStatement(selectedOrganization, selectedFile)
+      .then((res) => {
+        console.log("Upload result:", res);
+        setUploadSummary(res);
+        setIsUploading(false);
+        loadData(selectedOrganization);
+      })
+      .catch((err) => {
+        console.error("Upload failed:", err);
+        setUploadError(err.message || "Failed to upload file");
+        setIsUploading(false);
+      });
+  }
 
   return (
     <div className="container py-4">
@@ -61,6 +104,64 @@ function App() {
           </select>
         </div>
       </div>
+
+      {/* CSV Upload Section */}
+      <div className="card shadow-sm mb-4">
+        <div className="card-header bg-white py-3">
+          <h5 className="card-title mb-0 fw-bold">Import Bank Statement (CSV)</h5>
+        </div>
+        <div className="card-body">
+          <div className="row g-2 align-items-center">
+            <div className="col-auto flex-grow-1">
+              <input
+                type="file"
+                className="form-control"
+                accept=".csv"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            <div className="col-auto">
+              <button
+                className="btn btn-primary"
+                onClick={handleUpload}
+                disabled={isUploading || !selectedFile}
+              >
+                {isUploading ? "Uploading..." : "Upload CSV"}
+              </button>
+            </div>
+          </div>
+
+          {/* Upload error banner if any */}
+          {uploadError && (
+            <div className="alert alert-danger mt-3 mb-0" role="alert">
+              <strong>Error: </strong> {uploadError}
+            </div>
+          )}
+
+          {/* Upload summary display */}
+          {uploadSummary && (
+            <div className="alert alert-info mt-3 mb-0">
+              <h6 className="fw-bold mb-2">Import Summary:</h6>
+              <div>Rows Imported: <strong>{uploadSummary.imported}</strong></div>
+              <div>Duplicates Skipped: <strong>{uploadSummary.duplicates}</strong></div>
+
+              {uploadSummary.errors && uploadSummary.errors.length > 0 && (
+                <div className="mt-2 text-danger">
+                  <strong>Errors found ({uploadSummary.errors.length}):</strong>
+                  <ul className="mb-0 mt-1 ps-3">
+                    {uploadSummary.errors.map((err: any, idx: number) => (
+                      <li key={idx}>
+                        Line {err.line}: {err.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
 
       {/* Capital Call Line Items Panel */}
       <div className="card shadow-sm mb-4">
@@ -109,6 +210,76 @@ function App() {
                         >
                           {item.status}
                         </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bank Transactions Table */}
+      <div className="card shadow-sm mb-4">
+        <div className="card-header bg-white py-3">
+          <h5 className="card-title mb-0 fw-bold">Bank Transactions</h5>
+        </div>
+        <div className="card-body p-0">
+          {transactions.length === 0 ? (
+            <div className="p-4 text-center text-muted">
+              No bank transactions found. Upload a bank statement CSV to get started.
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-striped table-hover align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Bank Ref</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Suggested Match</th>
+                    <th>Match Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((txn) => (
+                    <tr key={txn.id}>
+                      <td>{txn.date}</td>
+                      <td style={{ maxWidth: "250px" }}>{txn.description}</td>
+                      <td><small className="text-muted font-monospace">{txn.reference}</small></td>
+                      <td className={Number(txn.amount) < 0 ? "text-danger fw-bold" : "text-success fw-bold"}>
+                        {formatMoney(txn.amount)}
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            txn.status === "suggested"
+                              ? "bg-info text-dark"
+                              : txn.status === "needs_review"
+                              ? "bg-warning text-dark"
+                              : txn.status === "reconciled"
+                              ? "bg-success"
+                              : "bg-secondary"
+                          }`}
+                        >
+                          {txn.status}
+                        </span>
+                      </td>
+                      <td>
+                        {txn.suggested_investor ? (
+                          <div>
+                            <strong>{txn.suggested_investor}</strong>
+                            <div className="text-muted small">{txn.suggested_reference}</div>
+                          </div>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                      <td style={{ maxWidth: "320px", fontSize: "13px" }}>
+                        {txn.reason || <span className="text-muted">—</span>}
                       </td>
                     </tr>
                   ))}
