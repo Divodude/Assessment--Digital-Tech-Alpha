@@ -75,80 +75,92 @@ class Command(BaseCommand):
         )
 
 
+        from decimal import Decimal
+
         models.LineItem.objects.get_or_create(
             organisation=north_wind,
             capital_call=north_wind_call1,
-            investor_entity=haller,
             expected_reference="CC-1001",
-            amount_called=27500,
-            amount_funded=0,
-            status="open"
+            defaults={
+                "investor_entity": haller,
+                "amount_called": Decimal("27500.00"),
+                "amount_funded": Decimal("0.00"),
+                "status": "open"
+            }
         )
 
         models.LineItem.objects.get_or_create(
             organisation=north_wind,
             capital_call=north_wind_call1,
-            investor_entity=rahul,
             expected_reference="CC-1002",
-            amount_called=25000,
-            amount_funded=0,
-            status="open"
+            defaults={
+                "investor_entity": rahul,
+                "amount_called": Decimal("25000.00"),
+                "amount_funded": Decimal("0.00"),
+                "status": "open"
+            }
         )
 
         models.LineItem.objects.get_or_create(
             organisation=north_wind,
             capital_call=north_wind_call1,
-            investor_entity=patel,
             expected_reference="CC-1003",
-            amount_called=12500,
-            amount_funded=0,
-            status="open"
+            defaults={
+                "investor_entity": patel,
+                "amount_called": Decimal("12500.00"),
+                "amount_funded": Decimal("0.00"),
+                "status": "open"
+            }
         )
 
         models.LineItem.objects.get_or_create(
             organisation=north_wind,
             capital_call=north_wind_call1,
-            investor_entity=meridian,
             expected_reference="CC-1004",
-            amount_called=15000,
-            amount_funded=0,
-            status="open"
+            defaults={
+                "investor_entity": meridian,
+                "amount_called": Decimal("15000.00"),
+                "amount_funded": Decimal("0.00"),
+                "status": "open"
+            }
         )
 
         models.LineItem.objects.get_or_create(
             organisation=north_wind,
             capital_call=north_wind_call1,
-            investor_entity=oakridge,
             expected_reference="CC-1005",
-            amount_called=15000,
-            amount_funded=0,
-            status="open"
+            defaults={
+                "investor_entity": oakridge,
+                "amount_called": Decimal("15000.00"),
+                "amount_funded": Decimal("0.00"),
+                "status": "open"
+            }
         )
-
 
         models.LineItem.objects.get_or_create(
             organisation=north_wind,
             capital_call=north_wind_call2,
-            investor_entity=oakridge,
             expected_reference="CC-1006",
-            amount_called=15000,
-            amount_funded=0,
-            status="open"
+            defaults={
+                "investor_entity": oakridge,
+                "amount_called": Decimal("15000.00"),
+                "amount_funded": Decimal("0.00"),
+                "status": "open"
+            }
         )
-
-   
 
         models.LineItem.objects.get_or_create(
             organisation=blue_bird,
             capital_call=blue_bird_call1,
-            investor_entity=cedar_grove,
             expected_reference="CC-2001",
-            amount_called=40000,
-            amount_funded=0,
-            status="open"
+            defaults={
+                "investor_entity": cedar_grove,
+                "amount_called": Decimal("40000.00"),
+                "amount_funded": Decimal("0.00"),
+                "status": "open"
+            }
         )
 
         self.stdout.write(
             self.style.SUCCESS("Demo data seeded successfully!")
-        )
-        print("Done seeding demo data!")
+        )
