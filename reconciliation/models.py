@@ -37,8 +37,9 @@ class BankTransaction(models.Model):
     date=models.DateField()
     amount=models.DecimalField(max_digits=10,decimal_places=2)
     type=models.CharField(max_length=100)
-    refrence=models.CharField(max_length=100)
+    reference=models.CharField(max_length=100)
     status=models.CharField(max_length=100)
+    description = models.TextField()
     
     
 class Match(models.Model):
