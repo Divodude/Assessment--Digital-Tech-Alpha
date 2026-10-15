@@ -1,1 +1,5 @@
-1 I innitialised the project and installed django and django rest framwork and attackedn the app to the project setting.
+1. I innitialised the project and installed django and django rest framwork and attackedn the app to the project setting.
+
+2. Now i am goinf to document create a data model for the project.
+
+
