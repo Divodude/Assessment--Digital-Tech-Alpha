@@ -9,3 +9,8 @@
 5. now i will be making the api enpoints of the application i am planning to use generic view for simple get requested and apiview for the updation and post request 
 
 6. so i will have to make the serilsied and then the api endpoint i will stert form the trancation api cause it is get apieasy one 
+
+7. i have made the service mode to process the 
+
+8. i have initialsie the frontent now i will now connet  the apis to the backend.
+
