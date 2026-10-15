@@ -4,6 +4,9 @@ import {
   getLineItems,
   getTransactions,
   importBankStatement,
+  approveMatch,
+  rejectMatch,
+  ignoreTransaction,
 } from "./api";
 
 function formatMoney(amount: string | number) {
@@ -17,11 +20,12 @@ function App() {
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
 
-
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<any>(null);
   const [uploadError, setUploadError] = useState("");
+
+  const [actionLoading, setActionLoading] = useState(false);
 
   // helper function to load all data for current org
   function loadData(orgSlug: string) {
@@ -76,6 +80,56 @@ function App() {
         console.error("Upload failed:", err);
         setUploadError(err.message || "Failed to upload file");
         setIsUploading(false);
+      });
+  }
+
+  // approve a proposed match
+  function handleApprove(matchId: string) {
+    if (!window.confirm("Approve this match and update capital call funding?")) {
+      return;
+    }
+
+    setActionLoading(true);
+    approveMatch(selectedOrganization, matchId)
+      .then(() => {
+        alert("Match approved successfully!");
+        loadData(selectedOrganization);
+        setActionLoading(false);
+      })
+      .catch((err) => {
+        console.log("Approve error:", err);
+        alert(err.message || "Could not approve match");
+        setActionLoading(false);
+      });
+  }
+
+  // reject a proposed match
+  function handleReject(matchId: string) {
+    setActionLoading(true);
+    rejectMatch(selectedOrganization, matchId)
+      .then(() => {
+        loadData(selectedOrganization);
+        setActionLoading(false);
+      })
+      .catch((err) => {
+        console.log("Reject error:", err);
+        alert(err.message || "Could not reject match");
+        setActionLoading(false);
+      });
+  }
+
+  // ignore a transaction
+  function handleIgnore(txnId: string) {
+    setActionLoading(true);
+    ignoreTransaction(selectedOrganization, txnId)
+      .then(() => {
+        loadData(selectedOrganization);
+        setActionLoading(false);
+      })
+      .catch((err) => {
+        console.log("Ignore error:", err);
+        alert(err.message || "Could not ignore transaction");
+        setActionLoading(false);
       });
   }
 
@@ -242,50 +296,100 @@ function App() {
                     <th>Status</th>
                     <th>Suggested Match</th>
                     <th>Match Reason</th>
+                    <th style={{ minWidth: "150px" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((txn) => (
-                    <tr key={txn.id}>
-                      <td>{txn.date}</td>
-                      <td style={{ maxWidth: "250px" }}>{txn.description}</td>
-                      <td><small className="text-muted font-monospace">{txn.reference}</small></td>
-                      <td className={Number(txn.amount) < 0 ? "text-danger fw-bold" : "text-success fw-bold"}>
-                        {formatMoney(txn.amount)}
-                      </td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            txn.status === "suggested"
-                              ? "bg-info text-dark"
-                              : txn.status === "needs_review"
-                              ? "bg-warning text-dark"
-                              : txn.status === "reconciled"
-                              ? "bg-success"
-                              : "bg-secondary"
-                          }`}
-                        >
-                          {txn.status}
-                        </span>
-                      </td>
-                      <td>
-                        {txn.suggested_investor ? (
-                          <div>
-                            <strong>{txn.suggested_investor}</strong>
-                            <div className="text-muted small">{txn.suggested_reference}</div>
-                          </div>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </td>
-                      <td style={{ maxWidth: "320px", fontSize: "13px" }}>
-                        {txn.reason || <span className="text-muted">—</span>}
-                      </td>
-                    </tr>
-                  ))}
+                  {transactions.map((txn) => {
+                    const proposedMatches = txn.matches?.filter(
+                      (m: any) => m.status === "proposed"
+                    ) || [];
+
+                    return (
+                      <tr key={txn.id}>
+                        <td>{txn.date}</td>
+                        <td style={{ maxWidth: "220px" }}>{txn.description}</td>
+                        <td><small className="text-muted font-monospace">{txn.reference}</small></td>
+                        <td className={Number(txn.amount) < 0 ? "text-danger fw-bold" : "text-success fw-bold"}>
+                          {formatMoney(txn.amount)}
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              txn.status === "suggested"
+                                ? "bg-info text-dark"
+                                : txn.status === "needs_review"
+                                ? "bg-warning text-dark"
+                                : txn.status === "reconciled"
+                                ? "bg-success"
+                                : "bg-secondary"
+                            }`}
+                          >
+                            {txn.status}
+                          </span>
+                        </td>
+                        <td>
+                          {txn.suggested_investor ? (
+                            <div>
+                              <strong>{txn.suggested_investor}</strong>
+                              <div className="text-muted small">{txn.suggested_reference}</div>
+                            </div>
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
+                        </td>
+                        <td style={{ maxWidth: "280px", fontSize: "13px" }}>
+                          {txn.reason || <span className="text-muted">—</span>}
+                        </td>
+                        <td>
+                          {/* If reconciled */}
+                          {txn.status === "reconciled" && (
+                            <span className="badge bg-success">Reconciled</span>
+                          )}
+
+                          {/* If ignored */}
+                          {txn.status === "ignored" && (
+                            <span className="text-muted small">Ignored</span>
+                          )}
+
+                          {/* Proposed matches approve / reject buttons */}
+                          {proposedMatches.map((m: any) => (
+                            <div key={m.id} className="d-flex gap-1 mb-1">
+                              <button
+                                className="btn btn-sm btn-success py-0 px-2"
+                                disabled={actionLoading}
+                                onClick={() => handleApprove(m.id)}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-danger py-0 px-2"
+                                disabled={actionLoading}
+                                onClick={() => handleReject(m.id)}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ))}
+
+                          {/* Ignore button for suggested or needs_review */}
+                          {(txn.status === "suggested" || txn.status === "needs_review") && (
+                            <button
+                              className="btn btn-sm btn-outline-secondary py-0 px-2"
+                              disabled={actionLoading}
+                              onClick={() => handleIgnore(txn.id)}
+                            >
+                              Ignore
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+
           )}
         </div>
       </div>
